@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    tools:context="sunrun.fingerprintidentification.MainActivity">
+
+    <Button
+    android:id="@+id/btn_activity_main_finger"
+    android:layout_width="150dp"
+    android:text="指纹识别"
+    android:layout_height="100dp" />
+    <Button
+        android:id="@+id/btn_activity_main_finger_stop"
+        android:layout_width="150dp"
+        android:layout_marginTop="50dp"
+        android:text="取消指纹识别"
+        android:layout_height="100dp" />
+    <Button
+        android:id="@+id/btn_activity_main_finger_jump"
+        android:layout_width="150dp"
+        android:layout_marginTop="50dp"
+        android:text="三星手机跳转"
+        android:layout_height="100dp" />
+
+</LinearLayout>
