@@ -179,8 +179,5 @@ public class MainActivity extends Activity {
     }
 
 
-    private void Log(String tag, String msg) {
-        Log.d(tag, msg);
-    }
 
 }
