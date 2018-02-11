@@ -17,6 +17,15 @@ import android.widget.Button;
 import android.widget.Toast;
 import android.os.Bundle;
 
+import com.samsung.android.sdk.SsdkUnsupportedException;
+import com.samsung.android.sdk.pass.Spass;
+import com.samsung.android.sdk.pass.SpassFingerprint;
+import com.samsung.android.sdk.pass.SpassInvalidStateException;
+
+import java.util.ArrayList;
+
+import sunrun.fingerprintidentification.view.DialogView;
+
 /**
  * 指纹识别
  */
@@ -29,6 +38,15 @@ public class MainActivity extends Activity {
     private CancellationSignal mCancellationSignal;
     //private FingerprintManagerCompat manager;
 
+    /************************三新手机************************/
+    private SpassFingerprint mSpassFingerprint;
+    private Spass mSpass;
+    private boolean isFeatureEnabled_index = false;
+    private boolean onReadyIdentify = false;
+    private boolean isFeatureEnabled_fingerprint = false;
+    private boolean needRetryIdentify = false;
+    private ArrayList<Integer> designatedFingers = null;
+    private boolean isSM=false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,19 +57,24 @@ public class MainActivity extends Activity {
         System.out.println("手机型号2"+android.os.Build.MANUFACTURER);
 
         if ("sys_emui".equals(GetSystem.getSystem())){//华为手机
+            isSM=false;
             Toast.makeText(MainActivity.this, "华为手机", Toast.LENGTH_LONG).show();
             //初始化华为、小米的指纹识别
             initializeFinger();
         }else if ("sys_miui".equals(GetSystem.getSystem())){//小米手机
+            isSM=false;
             Toast.makeText(MainActivity.this, "小米手机", Toast.LENGTH_LONG).show();
             //初始化华为、小米的指纹识别
             initializeFinger();
         }else if ("sys_flyme".equals(GetSystem.getSystem())){//魅族手机
+            isSM=false;
             Toast.makeText(MainActivity.this, "魅族手机", Toast.LENGTH_LONG).show();
              //初始化华为、小米的指纹识别
             initializeFinger();
         }else {//可能是三星手机
-
+            isSM=true;
+            Toast.makeText(MainActivity.this, "可能是三星手机", Toast.LENGTH_LONG).show();
+            initializeFingerToSM();
         }
 
 
@@ -60,11 +83,13 @@ public class MainActivity extends Activity {
         btn_finger.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (isFinger()) {//指纹识别条件满足
-                    Toast.makeText(MainActivity.this, "请进行指纹识别", Toast.LENGTH_LONG).show();
-                    startListening(null);
-                }else {//指纹识别不满足
-
+                if (!isSM) {//非三星机
+                    if (isFinger()) {//指纹识别条件满足
+                        Toast.makeText(MainActivity.this, "请进行指纹识别", Toast.LENGTH_LONG).show();
+                        startListening(null);
+                    }
+                }else {//三星机
+                    startIdentify();
                 }
             }
         });
@@ -89,6 +114,7 @@ public class MainActivity extends Activity {
         });
 
     }
+
 
     private void initializeFinger() {
         mCancellationSignal = new CancellationSignal();
@@ -177,7 +203,144 @@ public class MainActivity extends Activity {
             }
         }
     }
+/******************************三星手机的指纹识别***************************/
+    private void initializeFingerToSM() {
+        mSpass = new Spass();
+        try {
+            mSpass.initialize(MainActivity.this);
+            isFeatureEnabled_fingerprint = mSpass.isFeatureEnabled(Spass.DEVICE_FINGERPRINT);
+        } catch (SsdkUnsupportedException e) {
+            Log.e("Yankee", "Exception: " + e);
+        } catch (UnsupportedOperationException e) {
+            Toast.makeText(getApplicationContext(), "当前机型不支持指纹....", Toast.LENGTH_SHORT).show();
+            Log.e("Yankee", "Fingerprint Service is not supported in the device");
+        }
+        if (isFeatureEnabled_fingerprint) {
+            mSpassFingerprint = new SpassFingerprint(MainActivity.this);
+            Log.e("Yankee", "Fingerprint Service is supported in the device.");
+            Log.e("Yankee", "SDK version : " + mSpass.getVersionName());
+        } else {
+            Toast.makeText(getApplicationContext(), "当前机型不支持指纹....", Toast.LENGTH_SHORT).show();
+            Log.e("Yankee", "Fingerprint Service is not supported in the device.");
+            return;
+        }
+    }
+
+    private void startIdentify() {
+        if (onReadyIdentify == false) {
+            try {
+                onReadyIdentify = true;
+                if (mSpassFingerprint != null) {
+                    setIdentifyIndex();
+                    mSpassFingerprint.startIdentify(mIdentifyListener);
+                }
+                if (designatedFingers != null) {
+                    Log.e("Yankee", "Please identify finger to verify you with " + designatedFingers.toString() + " finger");
+                } else {
+                    Log.e("Yankee", "Please identify finger to verify you");
+                }
+            } catch (SpassInvalidStateException ise) {
+                onReadyIdentify = false;
+                resetIdentifyIndex();
+                if (ise.getType() == SpassInvalidStateException.STATUS_OPERATION_DENIED) {
+                    Log.e("Yankee", "Exception: " + ise.getMessage());
+                }
+            } catch (IllegalStateException e) {
+                onReadyIdentify = false;
+                resetIdentifyIndex();
+                Log.e("Yankee", "Exception: " + e);
+            }
+        } else {
+            Log.e("Yankee", "The previous request is remained. Please finished or cancel first");
+        }
+    }
 
 
+    private void setIdentifyIndex() {
+        if (isFeatureEnabled_index) {
+            if (mSpassFingerprint != null && designatedFingers != null) {
+                mSpassFingerprint.setIntendedFingerprintIndex(designatedFingers);
+            }
+        }
+    }
+    private void resetIdentifyIndex() {
+        designatedFingers = null;
+    }
 
+    private SpassFingerprint.IdentifyListener mIdentifyListener = new SpassFingerprint.IdentifyListener() {
+        @Override
+        public void onFinished(int eventStatus) { //Log.e("Yankee","identify finished : reason =" + getEventStatusName(eventStatus));
+            int FingerprintIndex = 0;
+            String FingerprintGuideText = null;
+            try {
+                FingerprintIndex = mSpassFingerprint.getIdentifiedFingerprintIndex();
+            } catch (IllegalStateException ise) {
+                Log.e("Yankee", ise.getMessage());
+            }
+            if (eventStatus == SpassFingerprint.STATUS_AUTHENTIFICATION_SUCCESS) {
+                Toast.makeText(getApplicationContext(), "Success....", Toast.LENGTH_SHORT).show();
+                Log.e("Yankee", "onFinished() : Identify authentification Success with FingerprintIndex : " + FingerprintIndex);
+            } else if (eventStatus == SpassFingerprint.STATUS_AUTHENTIFICATION_PASSWORD_SUCCESS) {
+                Log.e("Yankee", "onFinished() : Password authentification Success");
+            } else if (eventStatus == SpassFingerprint.STATUS_OPERATION_DENIED) {
+                Log.e("Yankee", "onFinished() : Authentification is blocked because of fingerprint service internally.");
+            } else if (eventStatus == SpassFingerprint.STATUS_USER_CANCELLED) {
+                Log.e("Yankee", "onFinished() : User cancel this identify.");
+            } else if (eventStatus == SpassFingerprint.STATUS_TIMEOUT_FAILED) {
+                Log.e("Yankee", "onFinished() : The time for identify is finished.");
+                //重新进行指纹验证
+                againTest();
+                Toast.makeText(getApplicationContext(), "Fail....", Toast.LENGTH_SHORT).show();
+            } else if (eventStatus == SpassFingerprint.STATUS_QUALITY_FAILED) {
+                Log.e("Yankee", "onFinished() : Authentification Fail for identify.");
+                Toast.makeText(getApplicationContext(), "Fail....", Toast.LENGTH_SHORT).show();
+                needRetryIdentify = true;
+                FingerprintGuideText = mSpassFingerprint.getGuideForPoorQuality();
+                //重新进行指纹验证
+                againTest();
+                Toast.makeText(getApplicationContext(), FingerprintGuideText, Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e("Yankee", "onFinished() : Authentification Fail for identify");
+                Toast.makeText(getApplicationContext(), "Fail....", Toast.LENGTH_SHORT).show();
+                needRetryIdentify = true;
+                //重新进行指纹验证
+                againTest();
+            }
+            if (!needRetryIdentify) {
+                resetIdentifyIndex();
+            }
+        }
+
+        @Override
+        public void onReady() {
+            Log.e("Yankee", "identify state is ready");
+        }
+
+        @Override
+        public void onStarted() {
+            Log.e("Yankee", "User touched fingerprint sensor");
+        }
+
+        @Override
+        public void onCompleted() {
+            Log.e("Yankee", "the identify is completed");
+            onReadyIdentify = false;
+            if (needRetryIdentify) {
+                needRetryIdentify = false; //mHandler.sendEmptyMessageDelayed(MSG_AUTH, 100);
+            }
+        }
+    };
+    //重新进行指纹验证
+    private void againTest() {
+        DialogView dialogView = new DialogView(MainActivity.this) {
+            @Override
+            public void isdismiss(int tag) {
+                if (tag == DialogView.OKTAG) {
+                    startIdentify();
+                }
+            }
+        };
+        //   KeyBoardUtils.closeKeybord(gridPasswordView, mContext);
+        dialogView.showdialog2("提示", "指纹验证失败", "算了", "再试一次");
+    }
 }

@@ -24,6 +24,8 @@
         android:layout_width="150dp"
         android:layout_marginTop="50dp"
         android:text="三星手机跳转"
+        android:visibility="gone"
         android:layout_height="100dp" />
+
 
 </LinearLayout>
