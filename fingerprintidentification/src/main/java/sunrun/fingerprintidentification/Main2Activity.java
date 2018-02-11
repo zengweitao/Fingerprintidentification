@@ -23,7 +23,6 @@ public class Main2Activity extends Activity {
     private boolean needRetryIdentify = false;
     private ArrayList<Integer> designatedFingers = null;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
