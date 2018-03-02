@@ -1,1 +1,1 @@
-include ':app', ':fingerprintidentification'
+include ':app', ':fingerprintidentification', ':ocr'
